@@ -16,6 +16,7 @@ import {
   guardarNotaDB,
   obtenerNotasDB,
   eliminarNotaDB,
+  actualizarNotaDB, // <-- NUEVA IMPORTACIÓN
   guardarHistorialDB, 
   obtenerHistorialDB, 
   obtenerEstadisticasDB
@@ -195,6 +196,18 @@ const rutas = {
     if (!id) throw new ErrorUsuario('Falta el ID de la nota.');
     await eliminarNotaDB(id);
     return { ok: true };
+  },
+
+  // --- NUEVA RUTA: ACTUALIZAR NOTA (Usando query param ?id=) ---
+  'PUT /api/notas': async (req) => {
+    const urlObj = new URL(req.url, 'http://localhost');
+    const id = urlObj.searchParams.get('id');
+    const { texto } = await leerCuerpo(req);
+    
+    if (!id || !texto) throw new ErrorUsuario('Falta el ID de la nota o el texto.');
+    
+    await actualizarNotaDB(id, texto);
+    return { ok: true, mensaje: 'Nota actualizada' };
   },
 
   // --- NUEVAS RUTAS (PERFIL, ETIQUETAS, HISTORIAL) ---

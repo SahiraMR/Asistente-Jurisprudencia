@@ -144,7 +144,7 @@ main.content{flex:1;overflow-y:auto}
 
 /* Notas */
 .nota-bloque{background:var(--gold-p); border-left: 3px solid var(--gold); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; position: relative;}
-.nota-bloque button{position: absolute; right: 5px; top: 5px; color: var(--bad); font-size: 11px; cursor: pointer;}
+.nota-bloque button{color: var(--bad); font-size: 13px; cursor: pointer;}
 
 @media(max-width:900px){
   .lmain{flex-direction:column;gap:40px;padding:24px 20px}.hero-img{display:none}.lhead,.lfoot{padding-left:20px;padding-right:20px}
@@ -469,8 +469,6 @@ async function cambiarEtiqueta(sentencia_id, etiqueta) {
 
 // ════════════════════════════════════════════════════════════════
 //  UTILIDAD: descarga de Word (usada por varias funciones)
-//  Envuelve el HTML en una estructura completa con UTF-8 para
-//  que los acentos y caracteres especiales se vean correctamente.
 // ════════════════════════════════════════════════════════════════
 function descargarWord(htmlContent, nombreArchivo) {
   if (!window.htmlDocx) {
@@ -478,16 +476,11 @@ function descargarWord(htmlContent, nombreArchivo) {
     return;
   }
 
-  // Envolvemos el HTML en una estructura completa con UTF-8
   const htmlCompleto = `
     <!DOCTYPE html>
     <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body>
-        ${htmlContent}
-      </body>
+      <head><meta charset="utf-8"></head>
+      <body>${htmlContent}</body>
     </html>
   `;
 
@@ -504,8 +497,7 @@ function descargarWord(htmlContent, nombreArchivo) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  EXPORTAR FICHA GUARDADA (con análisis completo desde JSON
-//  y estilos internos para un Word más profesional)
+//  EXPORTAR FICHA GUARDADA
 // ════════════════════════════════════════════════════════════════
 async function exportarFichaGuardada(sentencia_id) {
   toast('Generando ficha...');
@@ -517,7 +509,6 @@ async function exportarFichaGuardada(sentencia_id) {
     
     if (!doc) return toast('No se encontró la sentencia.');
 
-    // Estilos básicos para el Word
     const estilos = `
       <style>
         body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
@@ -540,7 +531,6 @@ async function exportarFichaGuardada(sentencia_id) {
       <p class="meta"><strong>Fecha:</strong> ${doc.fecha}</p>
     `;
 
-    // Si tenemos el análisis guardado, lo agregamos al Word
     if (doc.analisis_json) {
       let r = {};
       try { r = JSON.parse(doc.analisis_json); } catch (err) { console.warn('analisis_json inválido', err); }
@@ -576,7 +566,6 @@ async function exportarFichaGuardada(sentencia_id) {
     }
 
     descargarWord(htmlContent, `Ficha_${doc.nombre}`);
-    toast('Ficha exportada exitosamente');
   } catch (e) {
     console.error(e);
     toast('Error al exportar la ficha');
@@ -634,9 +623,12 @@ async function cargarDocumentosReales() {
           <label class="small muted" style="font-weight: 600; display:block; margin-bottom:8px;">Tus notas para este caso:</label>
           <div style="margin-bottom:10px;">
             ${notas.length > 0 ? notas.map(n => `
-              <div class="nota-bloque">
-                ${e(n.texto)}
-                <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
+              <div class="nota-bloque" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span id="texto-nota-${n.id}" style="flex:1; margin-right:8px;">${e(n.texto)}</span>
+                <div style="display:flex; gap:8px; flex:none;">
+                  <button onclick="prepararEdicionNota(${n.id}, '${e(n.texto).replace(/'/g, "\\'")}')" style="color:var(--coffee);" title="Editar nota">✏️</button>
+                  <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
+                </div>
               </div>
             `).join('') : '<div class="small muted" style="margin-bottom:8px;">Aún no hay notas.</div>'}
           </div>
@@ -667,6 +659,45 @@ async function agregarNota(sentencia_id, doc_id) {
     });
     if (res.ok) { toast('Nota guardada exitosamente'); cargarDocumentosReales(); }
     else { toast('Error al guardar la nota'); }
+  } catch (e) { toast('Error de conexión'); }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EDITAR NOTA (nuevo)
+// ════════════════════════════════════════════════════════════════
+function prepararEdicionNota(id, textoActual) {
+  const span = document.getElementById(`texto-nota-${id}`);
+  if (!span) return;
+
+  span.innerHTML = `
+    <div style="display:flex; gap:6px; width:100%; align-items:center;">
+      <input type="text" id="input-edicion-${id}" value="${textoActual.replace(/"/g, '&quot;')}"
+             style="flex:1; padding:6px; border:1px solid var(--gold); border-radius:4px; font-size:13px; background:#fff;">
+      <button onclick="guardarEdicionNota(${id})" style="color:var(--ok); font-weight:bold; font-size:12px; padding:4px 6px;">Guardar</button>
+      <button onclick="cargarDocumentosReales()" style="color:var(--bad); font-size:12px; padding:4px 6px;">Cancelar</button>
+    </div>
+  `;
+}
+
+async function guardarEdicionNota(id) {
+  const input = document.getElementById(`input-edicion-${id}`);
+  const nuevoTexto = input.value.trim();
+  if (!nuevoTexto) return toast('La nota no puede estar vacía.');
+
+  try {
+    // CORRECCIÓN AQUÍ: Cambiamos la ruta para usar query params
+    const res = await fetch(`/api/notas?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: nuevoTexto })
+    });
+    
+    if (res.ok) {
+      toast('Nota actualizada');
+      cargarDocumentosReales();
+    } else {
+      toast('Error al actualizar la nota');
+    }
   } catch (e) { toast('Error de conexión'); }
 }
 
@@ -726,7 +757,6 @@ async function exportarWord() {
     }
 
     descargarWord(htmlContent, 'Mis_Documentos_IurisSearch');
-    toast('Documento exportado exitosamente');
   } catch (e) {
     console.error(e);
     toast('Error al exportar');
@@ -813,7 +843,7 @@ async function guardar(id) {
         sentencia: {
           sentencia_id: r.id, nombre: r.nombre, radicado: r.radicado,
           ponente: r.ponente, fecha: r.fecha, url_oficial: r.url,
-          analisis_json: JSON.stringify(r) // <-- GUARDAMOS TODO EL ANÁLISIS
+          analisis_json: JSON.stringify(r)
         }
       })
     });
