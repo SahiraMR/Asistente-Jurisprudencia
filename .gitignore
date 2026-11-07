@@ -1,0 +1,40 @@
+# ─── Dependencias de Node ─────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Variables de entorno y secretos ──────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Base de datos local de Turso (archivos temporales) ───────────
+auth
+auth-wal
+auth-shm
+*.db
+*.db-journal
+
+# ─── Archivos generados por el proyecto ───────────────────────────
+# El caché de embeddings se regenera solo al arrancar el servidor
+data/embeddings_cache.json
+
+# Resultados de evaluación y pruebas éticas (se generan al ejecutar)
+data/resultados_evaluacion.json
+data/resultados_eticos.json
+
+# ─── Sistema operativo y editores ─────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Logs y temporales ────────────────────────────────────────────
+*.log
+tmp/
+temp/
