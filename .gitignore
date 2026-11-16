@@ -18,8 +18,8 @@ auth-shm
 *.db-journal
 
 # ─── Archivos generados por el proyecto ───────────────────────────
-# El caché de embeddings se regenera solo al arrancar el servidor
-data/embeddings_cache.json
+# El caché de embeddings ahora SÍ se sube a GitHub para evitar recalcularlo
+# data/embeddings_cache.json
 
 # Resultados de evaluación y pruebas éticas (se generan al ejecutar)
 data/resultados_evaluacion.json
