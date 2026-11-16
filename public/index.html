@@ -7,9 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/html-docx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
 <style>
-/* Los estilos que ya tenías (se mantienen intactos) */
 :root{
   --cream:#F8F3E8;--beige:#EDE5D0;--beige-d:#DDD0B8;--coffee-l:#A07850;--coffee:#7B4F2E;--coffee-d:#3D2010;--coffee-h:#5C3D1E;
   --gold:#C49A2A;--gold-l:#E8C96A;--gold-p:#F5E9C0;--ink:#1E140A;--paper:#FDFAF3;
@@ -144,7 +143,7 @@ main.content{flex:1;overflow-y:auto}
 
 /* Notas */
 .nota-bloque{background:var(--gold-p); border-left: 3px solid var(--gold); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; position: relative;}
-.nota-bloque button{color: var(--bad); font-size: 13px; cursor: pointer;}
+.nota-bloque button{position: absolute; right: 5px; top: 5px; color: var(--bad); font-size: 11px; cursor: pointer;}
 
 @media(max-width:900px){
   .lmain{flex-direction:column;gap:40px;padding:24px 20px}.hero-img{display:none}.lhead,.lfoot{padding-left:20px;padding-right:20px}
@@ -372,7 +371,8 @@ function tarjeta(r) {
 <button class="btn btn-d" style="padding:7px 12px;font-size:12px" onclick="event.stopPropagation();abrir('${e(r.id)}')">Ver detalle →</button></div></div></div>`;
 }
 
-const CONSULTA_CSJ = 'https://consultajurisprudencial.ramajudicial.gov.co:8080/WebRelatoria/csj/index.xhtml';
+// LA CORRECCIÓN DEL NUEVO LINK ESTÁ AQUÍ
+const CONSULTA_CSJ = 'https://consultaprovidencias.cortesuprema.gov.co/#/busqueda';
 const comoVerificar = r => `<b>Verificable en la fuente oficial:</b> <a href="${CONSULTA_CSJ}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:600">Consulta de Jurisprudencia de la Corte Suprema ↗</a> → buscar la providencia <b class="mono">${e(r.nombre)}</b>${r.radicado && r.radicado !== 'No consta' ? ` (radicado <b class="mono">${e(r.radicado)}</b>)` : ''}`;
 
 function fuente(r) {
@@ -448,7 +448,7 @@ async function cargarGuardadas() {
           
           <div class="stack" style="align-items:flex-end;gap:6px">
             <button class="btn btn-o" style="padding:4px 10px;font-size:12px" onclick="verTexto('${doc.sentencia_id}')">Ver texto</button>
-            <button class="btn btn-d" style="padding:4px 10px;font-size:12px" onclick="exportarFichaGuardada('${doc.sentencia_id}')">Exportar Ficha</button>
+            <button class="btn btn-d" style="padding:4px 10px;font-size:12px" onclick="exportarFicha('${doc.sentencia_id}', '${doc.nombre}', '${doc.radicado}', '${doc.ponente}', '${doc.fecha}', '${doc.url_oficial}')">Exportar Ficha</button>
           </div>
         </div>
       </div>
@@ -467,109 +467,30 @@ async function cambiarEtiqueta(sentencia_id, etiqueta) {
   } catch (e) { toast('Error al guardar etiqueta'); }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  UTILIDAD: descarga de Word (usada por varias funciones)
-// ════════════════════════════════════════════════════════════════
-function descargarWord(htmlContent, nombreArchivo) {
-  if (!window.htmlDocx) {
-    toast('La librería para generar Word no se cargó. Revisa que /html-docx.min.js exista.');
-    return;
-  }
-
-  const htmlCompleto = `
-    <!DOCTYPE html>
-    <html>
-      <head><meta charset="utf-8"></head>
-      <body>${htmlContent}</body>
-    </html>
+function exportarFicha(id, nombre, radicado, ponente, fecha, url) {
+  let htmlContent = `
+    <h1>Ficha de Jurisprudencia - IurisSearch</h1>
+    <h2>${nombre}</h2>
+    <p><strong>Radicado:</strong> ${radicado}</p>
+    <p><strong>Ponente:</strong> ${ponente}</p>
+    <p><strong>Fecha:</strong> ${fecha}</p>
+    <p><strong>Fuente:</strong> ${url || 'Consultar en Rama Judicial'}</p>
+    <br>
+    <h3>Análisis o Notas del Caso</h3>
+    <p>(Escribe aquí tus conclusiones)</p>
   `;
-
-  const blob = htmlDocx.asBlob(htmlCompleto);
-  const url = window.URL.createObjectURL(blob);
+  
+  const blob = htmlDocx.asBlob(htmlContent);
+  const blobUrl = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = nombreArchivo.replace(/[^\w\-]+/g, '_').slice(0, 80) + '.docx';
+  a.href = blobUrl;
+  a.download = `Ficha_${nombre.replace(/[^\w\-]+/g, '_').slice(0, 80)}.docx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-  toast('Ficha exportada exitosamente');
-}
-
-// ════════════════════════════════════════════════════════════════
-//  EXPORTAR FICHA GUARDADA
-// ════════════════════════════════════════════════════════════════
-async function exportarFichaGuardada(sentencia_id) {
-  toast('Generando ficha...');
+  window.URL.revokeObjectURL(blobUrl);
   
-  try {
-    const resDocs = await fetch(`/api/documentos?usuario_id=${USUARIO_ID}`);
-    const dataDocs = await resDocs.json();
-    const doc = dataDocs.documentos.find(d => d.sentencia_id === sentencia_id);
-    
-    if (!doc) return toast('No se encontró la sentencia.');
-
-    const estilos = `
-      <style>
-        body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
-        h1 { color: #3D2010; font-size: 18pt; text-align: center; }
-        h2 { color: #5C3D1E; font-size: 14pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-        h3 { color: #7B4F2E; font-size: 12pt; margin-top: 15px; }
-        p { line-height: 1.5; text-align: justify; }
-        ul { margin-top: 5px; }
-        li { margin-bottom: 5px; }
-        .meta { font-size: 10pt; color: #555; }
-      </style>
-    `;
-
-    let htmlContent = `
-      ${estilos}
-      <h1>Ficha de Jurisprudencia - IurisSearch</h1>
-      <h2>${doc.nombre}</h2>
-      <p class="meta"><strong>Radicado:</strong> ${doc.radicado}</p>
-      <p class="meta"><strong>Ponente:</strong> ${doc.ponente}</p>
-      <p class="meta"><strong>Fecha:</strong> ${doc.fecha}</p>
-    `;
-
-    if (doc.analisis_json) {
-      let r = {};
-      try { r = JSON.parse(doc.analisis_json); } catch (err) { console.warn('analisis_json inválido', err); }
-
-      htmlContent += `
-        <p class="meta"><strong>Nivel de Similitud:</strong> ${r.nivel || '—'} - ${NIVEL[r.nivel] || ''}</p>
-        <p class="meta"><strong>Fuente:</strong> ${r.url || 'Consultar en Rama Judicial'}</p>
-        
-        <h3>Justificación del Nivel</h3>
-        <p>${r.justificacion_nivel || '—'}</p>
-
-        <h3>Similitudes con tu caso</h3>
-        <ul>${(r.similitudes || []).map(s => `<li>${s}</li>`).join('') || '<li>No consta.</li>'}</ul>
-
-        <h3>Diferencias con tu caso</h3>
-        <ul>${(r.diferencias || []).map(d => `<li>${d}</li>`).join('') || '<li>No consta.</li>'}</ul>
-
-        <h2>Resumen de la Decisión</h2>
-        <p><strong>Hechos:</strong> ${r.hechos || '—'}</p>
-        <p><strong>Problema Jurídico:</strong> ${r.problema_juridico || '—'}</p>
-        <p><strong>Decisión:</strong> ${r.decision || '—'}</p>
-        <p><strong>Pena:</strong> ${r.pena || '—'}</p>
-
-        <h3>Normas</h3>
-        <ul>${(r.normas || []).map(n => `<li>${n}</li>`).join('') || '<li>No consta.</li>'}</ul>
-      `;
-    } else {
-      htmlContent += `
-        <p class="meta"><strong>Fuente:</strong> ${doc.url_oficial || 'Consultar en Rama Judicial'}</p>
-        <h3>Análisis o Notas del Caso</h3>
-        <p>(Escribe aquí tus conclusiones)</p>
-      `;
-    }
-
-    descargarWord(htmlContent, `Ficha_${doc.nombre}`);
-  } catch (e) {
-    console.error(e);
-    toast('Error al exportar la ficha');
-  }
+  toast('Ficha exportada exitosamente');
 }
 
 V.docs = () => shell('docs', `<div class="page"><div class="page-h"><div class="eyebrow">Tu selección</div>
@@ -623,12 +544,9 @@ async function cargarDocumentosReales() {
           <label class="small muted" style="font-weight: 600; display:block; margin-bottom:8px;">Tus notas para este caso:</label>
           <div style="margin-bottom:10px;">
             ${notas.length > 0 ? notas.map(n => `
-              <div class="nota-bloque" style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <span id="texto-nota-${n.id}" style="flex:1; margin-right:8px;">${e(n.texto)}</span>
-                <div style="display:flex; gap:8px; flex:none;">
-                  <button onclick="prepararEdicionNota(${n.id}, '${e(n.texto).replace(/'/g, "\\'")}')" style="color:var(--coffee);" title="Editar nota">✏️</button>
-                  <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
-                </div>
+              <div class="nota-bloque">
+                ${e(n.texto)}
+                <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
               </div>
             `).join('') : '<div class="small muted" style="margin-bottom:8px;">Aún no hay notas.</div>'}
           </div>
@@ -662,45 +580,6 @@ async function agregarNota(sentencia_id, doc_id) {
   } catch (e) { toast('Error de conexión'); }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  EDITAR NOTA (nuevo)
-// ════════════════════════════════════════════════════════════════
-function prepararEdicionNota(id, textoActual) {
-  const span = document.getElementById(`texto-nota-${id}`);
-  if (!span) return;
-
-  span.innerHTML = `
-    <div style="display:flex; gap:6px; width:100%; align-items:center;">
-      <input type="text" id="input-edicion-${id}" value="${textoActual.replace(/"/g, '&quot;')}"
-             style="flex:1; padding:6px; border:1px solid var(--gold); border-radius:4px; font-size:13px; background:#fff;">
-      <button onclick="guardarEdicionNota(${id})" style="color:var(--ok); font-weight:bold; font-size:12px; padding:4px 6px;">Guardar</button>
-      <button onclick="cargarDocumentosReales()" style="color:var(--bad); font-size:12px; padding:4px 6px;">Cancelar</button>
-    </div>
-  `;
-}
-
-async function guardarEdicionNota(id) {
-  const input = document.getElementById(`input-edicion-${id}`);
-  const nuevoTexto = input.value.trim();
-  if (!nuevoTexto) return toast('La nota no puede estar vacía.');
-
-  try {
-    // CORRECCIÓN AQUÍ: Cambiamos la ruta para usar query params
-    const res = await fetch(`/api/notas?id=${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texto: nuevoTexto })
-    });
-    
-    if (res.ok) {
-      toast('Nota actualizada');
-      cargarDocumentosReales();
-    } else {
-      toast('Error al actualizar la nota');
-    }
-  } catch (e) { toast('Error de conexión'); }
-}
-
 async function eliminarNota(id, sentencia_id) {
   if (!confirm('¿Eliminar esta nota?')) return;
   try {
@@ -726,9 +605,31 @@ function filtrarDocumentos() {
   });
 }
 
-// ════════════════════════════════════════════════════════════════
-//  EXPORTAR WORD (todos los documentos)
-// ════════════════════════════════════════════════════════════════
+function descargarWord(htmlContent, nombreArchivo) {
+  const htmlCompleto = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+    </html>
+  `;
+
+  const blob = htmlDocx.asBlob(htmlCompleto);
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo.replace(/[^\w\-]+/g, '_').slice(0, 80) + '.docx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+  toast('Ficha exportada exitosamente');
+}
+
 async function exportarWord() {
   toast('Generando documento...');
   try {
@@ -738,7 +639,25 @@ async function exportarWord() {
     
     if (docs.length === 0) return toast('No hay documentos para exportar.');
 
-    let htmlContent = `<h1>Mis Documentos - IurisSearch</h1><p>Usuario: ${localStorage.getItem('usuario_nombre')}</p><hr>`;
+    const estilos = `
+      <style>
+        body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
+        h1 { color: #3D2010; font-size: 20pt; text-align: center; }
+        h2 { color: #5C3D1E; font-size: 14pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 20px; }
+        h3 { color: #7B4F2E; font-size: 12pt; margin-top: 15px; }
+        p { line-height: 1.5; text-align: justify; }
+        ul { margin-top: 5px; }
+        li { margin-bottom: 5px; }
+        .meta { font-size: 10pt; color: #555; }
+      </style>
+    `;
+
+    let htmlContent = `
+      ${estilos}
+      <h1>Mis Documentos - IurisSearch</h1>
+      <p style="text-align:center; color:#666;">Usuario: ${localStorage.getItem('usuario_nombre')}</p>
+      <hr>
+    `;
     
     for (const doc of docs) {
       const resNotas = await fetch(`/api/notas?usuario_id=${USUARIO_ID}&sentencia_id=${doc.sentencia_id}`);
@@ -747,16 +666,47 @@ async function exportarWord() {
       
       htmlContent += `
         <h2>${doc.nombre}</h2>
-        <p><strong>Radicado:</strong> ${doc.radicado}</p>
-        <p><strong>Ponente:</strong> ${doc.ponente}</p>
-        <p><strong>Fecha:</strong> ${doc.fecha}</p>
-        ${notas.length > 0 ? `<p><strong>Notas:</strong></p><ul>${notas.map(n => `<li>${n.texto}</li>`).join('')}</ul>` : ''}
-        <p><strong>Fuente:</strong> ${doc.url_oficial || 'Consultar en Rama Judicial'}</p>
-        <hr>
+        <p class="meta"><strong>Radicado:</strong> ${doc.radicado}</p>
+        <p class="meta"><strong>Ponente:</strong> ${doc.ponente}</p>
+        <p class="meta"><strong>Fecha:</strong> ${doc.fecha}</p>
       `;
+
+      if (doc.analisis_json) {
+        const r = JSON.parse(doc.analisis_json);
+        htmlContent += `
+          <p class="meta"><strong>Nivel de Similitud:</strong> ${r.nivel} - ${NIVEL[r.nivel]}</p>
+          <p class="meta"><strong>Fuente:</strong> ${r.url || 'Consultar en Rama Judicial'}</p>
+          
+          <h3>Justificación del Nivel</h3>
+          <p>${r.justificacion_nivel}</p>
+
+          <h3>Similitudes con tu caso</h3>
+          <ul>${(r.similitudes || []).map(s => `<li>${s}</li>`).join('')}</ul>
+
+          <h3>Diferencias con tu caso</h3>
+          <ul>${(r.diferencias || []).map(d => `<li>${d}</li>`).join('')}</ul>
+
+          <h3>Resumen de la Decisión</h3>
+          <p><strong>Hechos:</strong> ${r.hechos}</p>
+          <p><strong>Problema Jurídico:</strong> ${r.problema_juridico}</p>
+          <p><strong>Decisión:</strong> ${r.decision}</p>
+          <p><strong>Pena:</strong> ${r.pena}</p>
+
+          <h3>Normas</h3>
+          <ul>${(r.normas || []).map(n => `<li>${n}</li>`).join('')}</ul>
+        `;
+      }
+
+      if (notas.length > 0) {
+        htmlContent += `<h3>Tus Notas</h3><ul>${notas.map(n => `<li>${n.texto}</li>`).join('')}</ul>`;
+      } else {
+        htmlContent += `<h3>Tus Notas</h3><p>(No hay notas para este documento)</p>`;
+      }
+      
+      htmlContent += `<hr><br>`;
     }
 
-    descargarWord(htmlContent, 'Mis_Documentos_IurisSearch');
+    descargarWord(htmlContent, 'Mis_Documentos_IurisSearch.docx');
   } catch (e) {
     console.error(e);
     toast('Error al exportar');
@@ -804,10 +754,9 @@ V.about = () => shell('about', `<div class="page"><div class="page-h"><div class
   ['2', 'Ficha del caso', 'La IA separa los hechos proporcionados de los no confirmados, identifica la información faltante y formula los problemas jurídicos como preguntas, sin resolverlos. Si el caso no es penal, lo indica.'],
   ['3', 'Búsqueda en un corpus cerrado', 'Se busca en sentencias de la Sala de Casación Penal descargadas de fuentes oficiales. Se combinan la búsqueda léxica (BM25, como los buscadores actuales) y la semántica (embeddings de Gemini), que encuentra relaciones aunque se usen palabras distintas.'],
   ['4', 'Comparación', 'La IA compara el caso con cada sentencia usando solo el texto de esa sentencia, y asigna un nivel: A (alta similitud), B (media) o C (relevancia jurídica), con justificación, similitudes y diferencias. No se usan porcentajes porque darían una falsa precisión.'],
-  ['5', 'Trazabilidad', 'El nombre, radicado, fecha y ponente de cada sentencia vienen del corpus, no de la IA, así que no pueden ser inventados. Cada una se puede ubicar en la Consulta de Jurisprudencia de la Corte Suprema por su providencia y radicado, y su texto completo se puede abrir desde la app para verificar el análisis.'],
-  ['6', 'Espacio de trabajo', 'El usuario puede guardar las sentencias de su interés, escribir notas personales para cada caso, asignar etiquetas (estudio, audiencia, escrito), consultar sus estadísticas y exportar fichas o listas completas a Word. Toda esta información queda almacenada de forma segura para consultas futuras.']
+  ['5', 'Trazabilidad', 'El nombre, radicado, fecha y ponente de cada sentencia vienen del corpus, no de la IA, así que no pueden ser inventados. Cada una se puede ubicar en la Consulta de Jurisprudencia de la Corte Suprema por su providencia y radicado, y su texto completo se puede abrir desde la app para verificar el análisis.']
 ].map(([n, t, d]) => `<div class="card"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><span class="mono" style="background:var(--coffee-d);color:var(--gold);border-radius:8px;padding:2px 9px;font-weight:700">${n}</span><div><div class="sec-t">${t}</div><p style="margin:0;color:var(--coffee)">${d}</p></div></div></div>`).join('')}
-<div class="card"><div class="sec-t">Límites conocidos</div><ul class="l" style="color:var(--coffee)"><li>Solo encuentra lo que está en el corpus: un corpus pequeño puede omitir precedentes relevantes.</li><li>El análisis de la IA puede contener errores: la verificación humana en la fuente es obligatoria.</li><li>La similitud semántica no siempre equivale a similitud jurídica.</li><li>La anonimización automática no detecta todos los datos personales.</li><li>La consulta de jurisprudencia de la Rama Judicial puede presentar fallas de conexión ajenas a esta herramienta.</li></ul></div></div>${AVISO}</div>`);
+<div class="card"><div class="sec-t">Límites conocidos</div><ul class="l" style="color:var(--coffee)"><li>Solo encuentra lo que está en el corpus: un corpus pequeño puede omitir precedentes relevantes.</li><li>El análisis de la IA puede contener errores: la verificación humana en la fuente es obligatoria.</li><li>La similitud semántica no siempre equivale a similitud jurídica.</li><li>La anonimización automática no detecta todos los datos personales.</li><li>El inicio de sesión, los repositorios y los documentos son maquetas del prototipo.</li></ul></div></div>${AVISO}</div>`);
 
 V.repos = () => shell('repos', `<div class="page"><div class="page-h"><div class="eyebrow">Próximamente</div><h1>Mis repositorios</h1><p>Organizar investigaciones por expediente, con su historial de consultas.</p></div><div class="soft">Función prevista para una versión posterior. No está implementada en el MVP.</div></div>`);
 
