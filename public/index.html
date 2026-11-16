@@ -489,66 +489,71 @@ async function cambiarEtiqueta(sentencia_id, etiqueta) {
   } catch (e) { toast('Error al guardar etiqueta'); }
 }
 
-function exportarFicha(id, nombre, radicado, ponente, fecha, url) {
-  const res = await fetch(`/api/documentos?usuario_id=${USUARIO_ID}`);
-  const data = await res.json();
-  const doc = data.documentos.find(d => d.sentencia_id === id);
+async function exportarFicha(id, nombre, radicado, ponente, fecha, url) {
+  try {
+    const res = await fetch(`/api/documentos?usuario_id=${USUARIO_ID}`);
+    const data = await res.json();
+    const doc = data.documentos.find(d => d.sentencia_id === id);
 
-  const estilos = `
-    <style>
-      body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
-      h1 { color: #3D2010; font-size: 20pt; text-align: center; }
-      h2 { color: #5C3D1E; font-size: 14pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 20px; }
-      h3 { color: #7B4F2E; font-size: 12pt; margin-top: 15px; }
-      p { line-height: 1.5; text-align: justify; }
-      ul { margin-top: 5px; }
-      li { margin-bottom: 5px; }
-      .meta { font-size: 10pt; color: #555; }
-    </style>
-  `;
-
-  let htmlContent = `
-    ${estilos}
-    <h1>Ficha de Jurisprudencia - IurisSearch</h1>
-    <h2>${nombre}</h2>
-    <p class="meta"><strong>Radicado:</strong> ${radicado}</p>
-    <p class="meta"><strong>Ponente:</strong> ${ponente}</p>
-    <p class="meta"><strong>Fecha:</strong> ${fecha}</p>
-  `;
-
-  if (doc && doc.analisis_json) {
-    const r = JSON.parse(doc.analisis_json);
-    htmlContent += `
-      <p class="meta"><strong>Nivel de Similitud:</strong> ${r.nivel} - ${NIVEL[r.nivel]}</p>
-      <p class="meta"><strong>Fuente:</strong> ${r.url || 'Consultar en Rama Judicial'}</p>
-      
-      <h3>Justificación del Nivel</h3>
-      <p>${r.justificacion_nivel}</p>
-
-      <h3>Similitudes con tu caso</h3>
-      <ul>${(r.similitudes || []).map(s => `<li>${s}</li>`).join('')}</ul>
-
-      <h3>Diferencias con tu caso</h3>
-      <ul>${(r.diferencias || []).map(d => `<li>${d}</li>`).join('')}</ul>
-
-      <h3>Resumen de la Decisión</h3>
-      <p><strong>Hechos:</strong> ${r.hechos}</p>
-      <p><strong>Problema Jurídico:</strong> ${r.problema_juridico}</p>
-      <p><strong>Decisión:</strong> ${r.decision}</p>
-      <p><strong>Pena:</strong> ${r.pena}</p>
-
-      <h3>Normas</h3>
-      <ul>${(r.normas || []).map(n => `<li>${n}</li>`).join('')}</ul>
+    const estilos = `
+      <style>
+        body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
+        h1 { color: #3D2010; font-size: 20pt; text-align: center; }
+        h2 { color: #5C3D1E; font-size: 14pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 20px; }
+        h3 { color: #7B4F2E; font-size: 12pt; margin-top: 15px; }
+        p { line-height: 1.5; text-align: justify; }
+        ul { margin-top: 5px; }
+        li { margin-bottom: 5px; }
+        .meta { font-size: 10pt; color: #555; }
+      </style>
     `;
-  } else {
-    htmlContent += `
-      <p class="meta"><strong>Fuente:</strong> ${url || 'Consultar en Rama Judicial'}</p>
-      <h3>Análisis o Notas del Caso</h3>
-      <p>(Escribe aquí tus conclusiones)</p>
+
+    let htmlContent = `
+      ${estilos}
+      <h1>Ficha de Jurisprudencia - IurisSearch</h1>
+      <h2>${nombre}</h2>
+      <p class="meta"><strong>Radicado:</strong> ${radicado}</p>
+      <p class="meta"><strong>Ponente:</strong> ${ponente}</p>
+      <p class="meta"><strong>Fecha:</strong> ${fecha}</p>
     `;
+
+    if (doc && doc.analisis_json) {
+      const r = JSON.parse(doc.analisis_json);
+      htmlContent += `
+        <p class="meta"><strong>Nivel de Similitud:</strong> ${r.nivel} - ${NIVEL[r.nivel]}</p>
+        <p class="meta"><strong>Fuente:</strong> ${r.url || 'Consultar en Rama Judicial'}</p>
+        
+        <h3>Justificación del Nivel</h3>
+        <p>${r.justificacion_nivel}</p>
+
+        <h3>Similitudes con tu caso</h3>
+        <ul>${(r.similitudes || []).map(s => `<li>${s}</li>`).join('')}</ul>
+
+        <h3>Diferencias con tu caso</h3>
+        <ul>${(r.diferencias || []).map(d => `<li>${d}</li>`).join('')}</ul>
+
+        <h3>Resumen de la Decisión</h3>
+        <p><strong>Hechos:</strong> ${r.hechos}</p>
+        <p><strong>Problema Jurídico:</strong> ${r.problema_juridico}</p>
+        <p><strong>Decisión:</strong> ${r.decision}</p>
+        <p><strong>Pena:</strong> ${r.pena}</p>
+
+        <h3>Normas</h3>
+        <ul>${(r.normas || []).map(n => `<li>${n}</li>`).join('')}</ul>
+      `;
+    } else {
+      htmlContent += `
+        <p class="meta"><strong>Fuente:</strong> ${url || 'Consultar en Rama Judicial'}</p>
+        <h3>Análisis o Notas del Caso</h3>
+        <p>(Escribe aquí tus conclusiones)</p>
+      `;
+    }
+
+    descargarWord(htmlContent, `Ficha_${nombre}`);
+  } catch (error) {
+    console.error(error);
+    toast('Error al exportar la ficha');
   }
-
-  descargarWord(htmlContent, `Ficha_${nombre}`);
 }
 
 V.docs = () => shell('docs', `<div class="page"><div class="page-h"><div class="eyebrow">Tu selección</div>
@@ -800,7 +805,7 @@ async function exportarWord() {
       htmlContent += `<hr><br>`;
     }
 
-    descargarWord(htmlContent, 'Mis_Documentos_IurisSearch.docx');
+    descargarWord(htmlContent, 'Mis_Documentos_IurisSearch');
   } catch (e) {
     console.error(e);
     toast('Error al exportar');
