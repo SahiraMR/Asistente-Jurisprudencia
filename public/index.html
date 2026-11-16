@@ -740,12 +740,16 @@ async function verTexto(id) {
     const d = await api('/api/documento/' + encodeURIComponent(id));
     const u = urlOficial(d.url);
     
-    // --- ANONIMIZACIÓN VISUAL ---
-    // Reemplazamos nombres propios en el texto antes de mostrarlo
+    // --- ANONIMIZACIÓN VISUAL PARA LA VISTA ---
+    // Reemplazamos los nombres propios que aparezcan en el texto original
     let textoMostrar = d.texto;
-    // Patrón simple para nombres en mayúsculas (ej. JHON FREDY JIMÉNEZ FAJARDO)
-    textoMostrar = textoMostrar.replace(/\b([A-ZÁÉÍÓÚÑ]{3,})\s+([A-ZÁÉÍÓÚÑ]{3,})(?:\s+([A-ZÁÉÍÓÚÑ]{3,}))?\b/g, '[NOMBRE]');
     
+    // Reemplazar nombres en MAYÚSCULAS sostenidas (ej. JHON FREDY JIMÉNEZ FAJARDO)
+    textoMostrar = textoMostrar.replace(/\b([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})(?:\s+([A-ZÁÉÍÓÚÑ]{2,}))?(?:\s+([A-ZÁÉÍÓÚÑ]{2,}))?\b/g, 'el procesado');
+    
+    // Reemplazar nombres con títulos (ej. Señor Juan Pérez)
+    textoMostrar = textoMostrar.replace(/\b(señor|señora|sr\.|sra\.|don|doña|joven|ciudadano|ciudadana|cliente|procesado|procesada|acusado|acusada|imputado|imputada|víctima)\s+((?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)(?:\s+(?:de\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/g, '$1 el sujeto');
+
     $('modal').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)cerrar()"><div class="modal"><div class="mh"><div><div class="mono" style="font-weight:700;font-size:16px">${e(d.nombre)}</div><div class="small muted">Radicación ${e(d.radicado || 'No consta')} · ${e(d.fecha || 'Fecha no consta')} · M.P. ${e(d.ponente || 'No consta')} · ${e(d.archivo)}</div><div class="small" style="margin-top:4px">${u ? `<a href="${e(u)}" target="_blank" rel="noopener">Abrir documento oficial ↗</a>` : comoVerificar(d)}</div></div><button class="btn btn-o" onclick="cerrar()">Cerrar</button></div><pre>${e(textoMostrar)}</pre></div></div>`;
   } catch (x) { toast(x.message); }
 }
