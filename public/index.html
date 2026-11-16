@@ -340,19 +340,29 @@ V.res = () => {
   const A = S.A; if (!A) return V.search();
   if (A.fuera_de_alcance) return shell('search', `<div class="page"><button class="link" onclick="go('search')">${I.left(14)} Nueva búsqueda</button>
   <h1 style="font-size:26px;margin:14px 0">Caso fuera del alcance</h1><div class="card"><p style="margin-top:0">Esta herramienta trabaja exclusivamente con <b>derecho penal colombiano</b>, por eso no se buscaron sentencias.</p><p class="muted" style="margin-bottom:0">${e(A.motivo_fuera_de_alcance)}</p></div>${AVISO}</div>`);
+  
+  // 🛡️ BLINDAJE: asegurar valores por defecto para evitar errores si la IA no devuelve algo
   const R = A.resultados || [];
   const cnt = n => R.filter(r => r.nivel === n).length;
   const vis = R.filter(r => S.fn === 'todos' || r.nivel === S.fn);
+  
+  const informacionFaltante = A.informacion_faltante || [];
+  const solicitudesFuera = A.solicitudes_fuera_de_funcion || [];
+  const hechosProp = A.hechos_proporcionados || [];
+  const hechosNoConf = A.hechos_no_confirmados || [];
+  const problemas = A.problemas || [];
+  const delitosPosibles = A.delitos_posibles || [];
+
   return shell('search', `<div class="page">
 <div class="between" style="margin-bottom:22px"><div><button class="link" onclick="go('search')">${I.left(14)} Nueva búsqueda</button>
 <h1 style="font-size:26px;margin-top:10px">Resultados de jurisprudencia</h1>
 <p style="color:var(--coffee);margin:4px 0 0">Se identificaron <b>${R.length}</b> decisiones potencialmente relevantes: <b>${cnt('A')}</b> de alta similitud, <b>${cnt('B')}</b> de similitud media y <b>${cnt('C')}</b> de relevancia jurídica.</p>
 <p class="small muted mono" style="margin:4px 0 0">Búsqueda ${e(METODO[A.metodo] || A.metodo || 'híbrida')}${A.modelo_ia ? ' · Modelo de IA: ' + e(A.modelo_ia) : ''}${A.anonimizacion?.reemplazos ? ` · ${A.anonimizacion.reemplazos} dato(s) personal(es) ocultado(s) antes de enviar a la IA` : ''}</p></div></div>
-${A.solicitudes_fuera_de_funcion?.length ? `<div class="warn" style="margin-bottom:14px">⚖️ <b>Solicitud fuera de la función de la herramienta:</b> ${e(A.solicitudes_fuera_de_funcion.join('; '))}. La herramienta no predice penas ni determina culpabilidad; presenta antecedentes para el análisis del funcionario judicial.</div>` : ''}
+${solicitudesFuera.length ? `<div class="warn" style="margin-bottom:14px">⚖️ <b>Solicitud fuera de la función de la herramienta:</b> ${e(solicitudesFuera.join('; '))}. La herramienta no predice penas ni determina culpabilidad; presenta antecedentes para el análisis del funcionario judicial.</div>` : ''}
 ${A.aviso_explicacion ? `<div class="warn" style="margin-bottom:14px">${e(A.aviso_explicacion)}</div>` : ''}
 <details class="card" style="margin-bottom:18px"><summary style="cursor:pointer;font-family:var(--serif);font-weight:700;font-size:17px">Cómo entendió la IA tu caso</summary>
-<div class="grid" style="margin-top:14px"><div><b>Hechos proporcionados</b>${ul(A.hechos_proporcionados)}</div><div><b>Hechos no confirmados</b> <span class="small muted">(dependen de las pruebas)</span>${ul(A.hechos_no_confirmados)}</div>
-<div><b>Problemas jurídicos</b>${ul(A.problemas)}</div><div><b>Delitos potencialmente relevantes</b><div style="margin-top:6px">${tags(A.delitos_posibles) || '<span class="muted small">No consta</span>'}</div>${A.informacion_faltante?.length ? `<div style="margin-top:12px"><b>Información faltante</b>${ul(A.informacion_faltante)}</div>` : ''}</div></div></details>
+<div class="grid" style="margin-top:14px"><div><b>Hechos proporcionados</b>${ul(hechosProp)}</div><div><b>Hechos no confirmados</b> <span class="small muted">(dependen de las pruebas)</span>${ul(hechosNoConf)}</div>
+<div><b>Problemas jurídicos</b>${ul(problemas)}</div><div><b>Delitos potencialmente relevantes</b><div style="margin-top:6px">${tags(delitosPosibles) || '<span class="muted small">No consta</span>'}</div>${informacionFaltante.length ? `<div style="margin-top:12px"><b>Información faltante</b>${ul(informacionFaltante)}</div>` : ''}</div></div></details>
 ${!cnt('A') && !cnt('B') ? `<div class="paper" style="margin-bottom:14px"><b>No se encontraron decisiones con un nivel de similitud significativo en el corpus.</b><div class="small muted" style="margin-top:4px">Los resultados mostrados solo tienen relevancia jurídica (nivel C). Es preferible decirlo a presentar casos que no son realmente comparables.</div></div>` : ''}
 <div class="row" style="margin-bottom:16px"><span class="muted small">Filtrar por nivel:</span>${[['todos', 'Todos'], ['A', 'A · Alta'], ['B', 'B · Media'], ['C', 'C · Relevancia jurídica']].map(([v, l]) => `<button class="chip ${S.fn === v ? 'on' : ''}" onclick="S.fn='${v}';render()">${l}</button>`).join('')}</div>
 <div class="stack">${vis.map(r => tarjeta(r)).join('') || '<p class="muted">No hay resultados con ese nivel.</p>'}</div>
@@ -396,7 +406,7 @@ ${r.posicion_divergente ? `<div class="paper" style="margin-top:14px"><div class
 <div class="card"><div class="sec-t">Conceptos relacionados</div><div>${tags(A.conceptos) || '—'}</div></div><div class="card"><div class="sec-t">Pruebas mencionadas</div>${ul(A.pruebas)}</div></div>
 <div class="card" style="margin-top:14px"><div class="sec-t">Sinónimos jurídicos relevantes</div><div class="grid">${(A.sinonimos || []).map(x => `<div class="soft"><b style="color:var(--coffee-d)">${e(x.termino)}</b><div class="small" style="color:var(--coffee)">${e((x.equivalentes || []).join(', '))}</div></div>`).join('') || '<span class="muted">—</span>'}</div></div>
 <div class="card" style="margin-top:14px"><div class="sec-t">Polisemia</div>${(A.polisemia || []).map(x => `<div style="margin:4px 0"><b>${e(x.termino)}:</b> <span style="color:var(--coffee)">${e(x.sentidos)}</span></div>`).join('') || '<span class="muted">—</span>'}</div>`,
-    otras: () => `<div class="stack">${A.resultados.filter(x => x.id !== r.id).map(x => `<div class="card hover" onclick="abrir('${e(x.id)}')"><div class="between"><div><div class="row" style="gap:10px;margin-bottom:6px"><span class="idtag" style="font-size:13px">${e(x.nombre)}</span><span class="nivel nivel-${x.nivel}">Nivel ${x.nivel}</span><span class="small muted mono">${e(x.fecha)}</span></div><p style="margin:0;color:var(--coffee);font-size:13.5px">${e(x.justificacion_nivel)}</p></div>${I.right()}</div></div>`).join('') || '<p class="muted">No hay otras decisiones.</p>'}</div>`
+    otras: () => `<div class="stack">${(A.resultados || []).filter(x => x.id !== r.id).map(x => `<div class="card hover" onclick="abrir('${e(x.id)}')"><div class="between"><div><div class="row" style="gap:10px;margin-bottom:6px"><span class="idtag" style="font-size:13px">${e(x.nombre)}</span><span class="nivel nivel-${x.nivel}">Nivel ${x.nivel}</span><span class="small muted mono">${e(x.fecha)}</span></div><p style="margin:0;color:var(--coffee);font-size:13.5px">${e(x.justificacion_nivel)}</p></div>${I.right()}</div></div>`).join('') || '<p class="muted">No hay otras decisiones.</p>'}</div>`
   };
   return shell('search', `<div class="page"><button class="link" onclick="go('res')">${I.left(14)} Volver a resultados</button>
 <div class="card" style="margin:16px 0 0"><div class="between"><div><div class="row" style="gap:10px;margin-bottom:10px"><span class="mono" style="font-size:20px;font-weight:700;color:var(--coffee-d)">${e(r.nombre)}</span><span class="nivel nivel-${r.nivel}">Nivel ${r.nivel} · ${NIVEL[r.nivel]}</span><span class="badge">${e(r.delito_corpus)}</span></div>
@@ -776,7 +786,7 @@ async function analizar() {
 function abrir(id) { go('det', { sel: id, tab: 'similitudes' }); }
 
 async function guardar(id) {
-  const r = S.A?.resultados.find(x => x.id === id) || S.saved[id];
+  const r = S.A?.resultados?.find(x => x.id === id) || S.saved[id];
   if (S.saved[id]) { delete S.saved[id]; toast('Sentencia eliminada de guardadas'); render(); return; }
 
   S.saved[id] = r;
