@@ -490,29 +490,65 @@ async function cambiarEtiqueta(sentencia_id, etiqueta) {
 }
 
 function exportarFicha(id, nombre, radicado, ponente, fecha, url) {
+  const res = await fetch(`/api/documentos?usuario_id=${USUARIO_ID}`);
+  const data = await res.json();
+  const doc = data.documentos.find(d => d.sentencia_id === id);
+
+  const estilos = `
+    <style>
+      body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #333; }
+      h1 { color: #3D2010; font-size: 20pt; text-align: center; }
+      h2 { color: #5C3D1E; font-size: 14pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 20px; }
+      h3 { color: #7B4F2E; font-size: 12pt; margin-top: 15px; }
+      p { line-height: 1.5; text-align: justify; }
+      ul { margin-top: 5px; }
+      li { margin-bottom: 5px; }
+      .meta { font-size: 10pt; color: #555; }
+    </style>
+  `;
+
   let htmlContent = `
+    ${estilos}
     <h1>Ficha de Jurisprudencia - IurisSearch</h1>
     <h2>${nombre}</h2>
-    <p><strong>Radicado:</strong> ${radicado}</p>
-    <p><strong>Ponente:</strong> ${ponente}</p>
-    <p><strong>Fecha:</strong> ${fecha}</p>
-    <p><strong>Fuente:</strong> ${url || 'Consultar en Rama Judicial'}</p>
-    <br>
-    <h3>Análisis o Notas del Caso</h3>
-    <p>(Escribe aquí tus conclusiones)</p>
+    <p class="meta"><strong>Radicado:</strong> ${radicado}</p>
+    <p class="meta"><strong>Ponente:</strong> ${ponente}</p>
+    <p class="meta"><strong>Fecha:</strong> ${fecha}</p>
   `;
-  
-  const blob = htmlDocx.asBlob(htmlContent);
-  const blobUrl = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = `Ficha_${nombre.replace(/[^\w\-]+/g, '_').slice(0, 80)}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(blobUrl);
-  
-  toast('Ficha exportada exitosamente');
+
+  if (doc && doc.analisis_json) {
+    const r = JSON.parse(doc.analisis_json);
+    htmlContent += `
+      <p class="meta"><strong>Nivel de Similitud:</strong> ${r.nivel} - ${NIVEL[r.nivel]}</p>
+      <p class="meta"><strong>Fuente:</strong> ${r.url || 'Consultar en Rama Judicial'}</p>
+      
+      <h3>Justificación del Nivel</h3>
+      <p>${r.justificacion_nivel}</p>
+
+      <h3>Similitudes con tu caso</h3>
+      <ul>${(r.similitudes || []).map(s => `<li>${s}</li>`).join('')}</ul>
+
+      <h3>Diferencias con tu caso</h3>
+      <ul>${(r.diferencias || []).map(d => `<li>${d}</li>`).join('')}</ul>
+
+      <h3>Resumen de la Decisión</h3>
+      <p><strong>Hechos:</strong> ${r.hechos}</p>
+      <p><strong>Problema Jurídico:</strong> ${r.problema_juridico}</p>
+      <p><strong>Decisión:</strong> ${r.decision}</p>
+      <p><strong>Pena:</strong> ${r.pena}</p>
+
+      <h3>Normas</h3>
+      <ul>${(r.normas || []).map(n => `<li>${n}</li>`).join('')}</ul>
+    `;
+  } else {
+    htmlContent += `
+      <p class="meta"><strong>Fuente:</strong> ${url || 'Consultar en Rama Judicial'}</p>
+      <h3>Análisis o Notas del Caso</h3>
+      <p>(Escribe aquí tus conclusiones)</p>
+    `;
+  }
+
+  descargarWord(htmlContent, `Ficha_${nombre}`);
 }
 
 V.docs = () => shell('docs', `<div class="page"><div class="page-h"><div class="eyebrow">Tu selección</div>
@@ -566,9 +602,12 @@ async function cargarDocumentosReales() {
           <label class="small muted" style="font-weight: 600; display:block; margin-bottom:8px;">Tus notas para este caso:</label>
           <div style="margin-bottom:10px;">
             ${notas.length > 0 ? notas.map(n => `
-              <div class="nota-bloque">
-                ${e(n.texto)}
-                <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
+              <div class="nota-bloque" style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="texto-nota-${n.id}">${e(n.texto)}</span>
+                <div>
+                  <button onclick="prepararEdicionNota(${n.id}, '${e(n.texto).replace(/'/g, "\\'")}')" style="color:var(--coffee); margin-right:10px; font-size:14px;" title="Editar nota">✏️</button>
+                  <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
+                </div>
               </div>
             `).join('') : '<div class="small muted" style="margin-bottom:8px;">Aún no hay notas.</div>'}
           </div>
@@ -599,6 +638,39 @@ async function agregarNota(sentencia_id, doc_id) {
     });
     if (res.ok) { toast('Nota guardada exitosamente'); cargarDocumentosReales(); }
     else { toast('Error al guardar la nota'); }
+  } catch (e) { toast('Error de conexión'); }
+}
+
+async function prepararEdicionNota(id, textoActual) {
+  const span = document.getElementById(`texto-nota-${id}`);
+  if (!span) return;
+
+  span.innerHTML = `
+    <input type="text" id="input-edicion-${id}" value="${textoActual.replace(/"/g, '&quot;')}" 
+           style="flex:1; padding:4px; border:1px solid var(--gold); border-radius:4px; font-size:13px; margin-right: 8px;">
+    <button onclick="guardarEdicionNota(${id})" style="color:var(--ok); font-weight:bold; margin-right:5px;">Guardar</button>
+    <button onclick="cargarDocumentosReales()" style="color:var(--bad);">Cancelar</button>
+  `;
+}
+
+async function guardarEdicionNota(id) {
+  const input = document.getElementById(`input-edicion-${id}`);
+  const nuevoTexto = input.value.trim();
+  if (!nuevoTexto) return toast('La nota no puede estar vacía.');
+
+  try {
+    const res = await fetch(`/api/notas?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: nuevoTexto })
+    });
+    
+    if (res.ok) {
+      toast('Nota actualizada');
+      cargarDocumentosReales();
+    } else {
+      toast('Error al actualizar la nota');
+    }
   } catch (e) { toast('Error de conexión'); }
 }
 
@@ -743,13 +815,20 @@ async function verTexto(id) {
     // --- FILTRO AGRESIVO DE NOMBRES ---
     let textoMostrar = d.texto;
     
-    // 1. Reemplazar nombres en MAYÚSCULAS SOSTENIDAS (JHON FREDY JIMÉNEZ)
+    // 1. Reemplazar el nombre del ponente (viene del corpus)
+    if (d.ponente && d.ponente !== 'No consta') {
+      const nombrePonente = d.ponente.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regexPonente = new RegExp(nombrePonente, 'gi');
+      textoMostrar = textoMostrar.replace(regexPonente, 'el magistrado ponente');
+    }
+
+    // 2. Reemplazar nombres en MAYÚSCULAS SOSTENIDAS (3 o 4 palabras)
     textoMostrar = textoMostrar.replace(/\b([A-ZÁÉÍÓÚÑ]{3,})\s+([A-ZÁÉÍÓÚÑ]{3,})(?:\s+([A-ZÁÉÍÓÚÑ]{3,}))?(?:\s+([A-ZÁÉÍÓÚÑ]{3,}))?\b/g, 'el procesado');
     
-    // 2. Reemplazar nombres en formato Título (Laura Milena Moreno)
+    // 3. Reemplazar nombres en formato Título (2 a 4 palabras)
     textoMostrar = textoMostrar.replace(/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,})(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}))?(?:\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}))?\b/g, 'el procesado');
-    
-    // 3. Reemplazar nombres con títulos (Señor Juan, Joven Pedro)
+
+    // 4. Reemplazar nombres con títulos
     textoMostrar = textoMostrar.replace(/\b(señor|señora|sr\.|sra\.|don|doña|joven|ciudadano|ciudadana|cliente|procesado|procesada|acusado|acusada|imputado|imputada|víctima)\s+((?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)(?:\s+(?:de\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/g, '$1 el sujeto');
 
     $('modal').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)cerrar()"><div class="modal"><div class="mh"><div><div class="mono" style="font-weight:700;font-size:16px">${e(d.nombre)}</div><div class="small muted">Radicación ${e(d.radicado || 'No consta')} · ${e(d.fecha || 'Fecha no consta')} · M.P. ${e(d.ponente || 'No consta')} · ${e(d.archivo)}</div><div class="small" style="margin-top:4px">${u ? `<a href="${e(u)}" target="_blank" rel="noopener">Abrir documento oficial ↗</a>` : comoVerificar(d)}</div></div><button class="btn btn-o" onclick="cerrar()">Cerrar</button></div><pre>${e(textoMostrar)}</pre></div></div>`;
