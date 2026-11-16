@@ -142,8 +142,30 @@ main.content{flex:1;overflow-y:auto}
 .toast{background:var(--ink);color:var(--cream);border-left:4px solid var(--gold);border-radius:12px;padding:12px 16px;min-width:260px;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,.3);animation:slideUp .25s}
 
 /* Notas */
-.nota-bloque{background:var(--gold-p); border-left: 3px solid var(--gold); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; position: relative;}
-.nota-bloque button{position: absolute; right: 5px; top: 5px; color: var(--bad); font-size: 11px; cursor: pointer;}
+.nota-bloque {
+  background: var(--gold-p);
+  border-left: 3px solid var(--gold);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.nota-bloque .acciones-nota {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.nota-bloque .acciones-nota button {
+  color: var(--coffee);
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.nota-bloque .acciones-nota button:hover { color: var(--bad); }
 
 @media(max-width:900px){
   .lmain{flex-direction:column;gap:40px;padding:24px 20px}.hero-img{display:none}.lhead,.lfoot{padding-left:20px;padding-right:20px}
@@ -607,10 +629,10 @@ async function cargarDocumentosReales() {
           <label class="small muted" style="font-weight: 600; display:block; margin-bottom:8px;">Tus notas para este caso:</label>
           <div style="margin-bottom:10px;">
             ${notas.length > 0 ? notas.map(n => `
-              <div class="nota-bloque" style="display:flex; justify-content:space-between; align-items:center;">
-                <span id="texto-nota-${n.id}">${e(n.texto)}</span>
-                <div>
-                  <button onclick="prepararEdicionNota(${n.id}, '${e(n.texto).replace(/'/g, "\\'")}')" style="color:var(--coffee); margin-right:10px; font-size:14px;" title="Editar nota">✏️</button>
+              <div class="nota-bloque">
+                <span id="texto-nota-${n.id}" style="flex:1; word-break: break-word;">${e(n.texto)}</span>
+                <div class="acciones-nota">
+                  <button onclick="prepararEdicionNota(${n.id}, '${e(n.texto).replace(/'/g, "\\'")}')" title="Editar nota">✏️</button>
                   <button onclick="eliminarNota(${n.id}, '${doc.sentencia_id}')" title="Eliminar nota">✖</button>
                 </div>
               </div>
@@ -653,8 +675,10 @@ async function prepararEdicionNota(id, textoActual) {
   span.innerHTML = `
     <input type="text" id="input-edicion-${id}" value="${textoActual.replace(/"/g, '&quot;')}" 
            style="flex:1; padding:4px; border:1px solid var(--gold); border-radius:4px; font-size:13px; margin-right: 8px;">
-    <button onclick="guardarEdicionNota(${id})" style="color:var(--ok); font-weight:bold; margin-right:5px;">Guardar</button>
-    <button onclick="cargarDocumentosReales()" style="color:var(--bad);">Cancelar</button>
+    <div class="acciones-nota">
+      <button onclick="guardarEdicionNota(${id})" style="color:var(--ok); font-weight:bold;">Guardar</button>
+      <button onclick="cargarDocumentosReales()" style="color:var(--bad);">Cancelar</button>
+    </div>
   `;
 }
 
