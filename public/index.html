@@ -332,7 +332,7 @@ ${S.err ? `<div class="err">${e(S.err)}</div><div class="row" style="margin-top:
 <div class="between" style="margin-bottom:8px"><b style="color:var(--coffee);font-size:13px">Progreso del análisis</b><span class="mono" style="color:var(--gold);font-weight:700;font-size:13px">${p}%</span></div>
 <div class="prog"><i style="width:${p}%"></i></div>
 <div class="steps" style="margin-top:24px">${ETAPAS.map(([t, s], i) => { const done = i < paso, cur = i === paso && !S.done; return `<div class="step ${done ? 'done' : ''} ${cur ? 'cur' : ''}"><div class="dot">${done ? '✓' : i + 1}</div><div><div style="font-weight:${cur ? 600 : 400};color:${done || cur ? 'var(--ink)' : 'var(--coffee-l)'}">${t}</div>${done || cur ? `<div class="sub">${s}</div>` : ''}</div>${cur ? '<div class="spin"></div>' : ''}</div>`; }).join('')}</div>
-<button class="btn btn-g" style="width:100%;justify-content:center;margin-top:22px" ${S.done ? '' : 'disabled'} onclick="go('res')">${S.done ? 'Ver resultados →' : 'Procesando…'}</button>`}
+<button class="btn btn-g" style="width:100%;justify-content:center;margin-top:22px" onclick="go('res')">Ver resultados →</button>`}
 </div>`);
 };
 
@@ -371,7 +371,6 @@ function tarjeta(r) {
 <button class="btn btn-d" style="padding:7px 12px;font-size:12px" onclick="event.stopPropagation();abrir('${e(r.id)}')">Ver detalle →</button></div></div></div>`;
 }
 
-// LA CORRECCIÓN DEL NUEVO LINK ESTÁ AQUÍ
 const CONSULTA_CSJ = 'https://consultaprovidencias.cortesuprema.gov.co/#/busqueda';
 const comoVerificar = r => `<b>Verificable en la fuente oficial:</b> <a href="${CONSULTA_CSJ}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:600">Consulta de Jurisprudencia de la Corte Suprema ↗</a> → buscar la providencia <b class="mono">${e(r.nombre)}</b>${r.radicado && r.radicado !== 'No consta' ? ` (radicado <b class="mono">${e(r.radicado)}</b>)` : ''}`;
 
