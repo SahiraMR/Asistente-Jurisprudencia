@@ -399,9 +399,22 @@ V.det = () => {
 <div class="grid"><div class="card"><div class="sec-t" style="color:var(--ok)">✓ Similitudes con tu caso</div>${ul(r.similitudes)}</div><div class="card"><div class="sec-t" style="color:var(--bad)">≠ Diferencias con tu caso</div>${ul(r.diferencias)}</div></div>
 ${r.posicion_divergente ? `<div class="paper" style="margin-top:14px"><div class="sec-t">Posición divergente</div><p style="margin:0">${e(r.posicion_divergente)}</p></div>` : ''}
 <div class="note" style="margin-top:14px">Comparación realizada por la IA. Que una diferencia haya sido relevante en el caso anterior no significa que tendrá el mismo efecto en tu caso.</div>`,
-    resumen: () => `<div class="stack">${[['📋', 'Hechos considerados probados', r.hechos], ['⚖️', 'Problema jurídico', r.problema_juridico], ['📜', 'Argumentos del tribunal', r.argumentos], ['🔨', 'Decisión', r.decision], ['⛓️', 'Pena', r.pena]].map(([i, t, c]) => `<div class="card"><div class="sec-t"><span>${i}</span>${t}</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(c)}</p></div>`).join('')}
-<div class="card"><div class="sec-t"><span>📖</span>Normas</div>${ul(r.normas)}</div></div>
-<div class="note" style="margin-top:14px">Resumen generado por IA solo a partir del texto de la sentencia en el corpus. Verifica cada dato en la fuente antes de usarlo.</div>`,
+    resumen: () => `<div class="stack">
+      ${r.hechos && r.hechos !== 'No consta' ? `<div class="card"><div class="sec-t"><span>📋</span>Hechos considerados probados</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(r.hechos)}</p></div>` : ''}
+      
+      ${r.problema_juridico && r.problema_juridico !== 'No consta' ? `<div class="card"><div class="sec-t"><span>⚖️</span>Problema jurídico</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(r.problema_juridico)}</p></div>` : ''}
+      
+      ${r.argumentos && r.argumentos !== 'No consta' ? `<div class="card"><div class="sec-t"><span>📜</span>Argumentos del tribunal</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(r.argumentos)}</p></div>` : ''}
+      
+      ${r.decision && r.decision !== 'No consta' ? `<div class="card"><div class="sec-t"><span>🔨</span>Decisión</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(r.decision)}</p></div>` : ''}
+      
+      ${r.pena && r.pena !== 'No consta' ? `<div class="card"><div class="sec-t"><span>⛓️</span>Pena</div><p style="margin:0;color:var(--coffee);line-height:1.7">${e(r.pena)}</p></div>` : ''}
+      
+      ${(!r.hechos && !r.problema_juridico && !r.decision) ? `<div class="warn">⚠️ La IA no generó un resumen estructurado para esta sentencia. Por favor, revisa el texto completo en la pestaña de trazabilidad.</div>` : ''}
+
+      <div class="card"><div class="sec-t"><span>📖</span>Normas</div>${ul(r.normas)}</div>
+    </div>
+    <div class="note" style="margin-top:14px">Resumen generado por IA solo a partir del texto de la sentencia en el corpus. Verifica cada dato en la fuente antes de usarlo.</div>`,
     analisis: () => `<div class="grid"><div class="card"><div class="sec-t">Problemas jurídicos</div>${ul(A.problemas)}</div><div class="card"><div class="sec-t">Normas potencialmente aplicables</div>${ul(A.normas)}</div>
 <div class="card"><div class="sec-t">Conceptos relacionados</div><div>${tags(A.conceptos) || '—'}</div></div><div class="card"><div class="sec-t">Pruebas mencionadas</div>${ul(A.pruebas)}</div></div>
 <div class="card" style="margin-top:14px"><div class="sec-t">Sinónimos jurídicos relevantes</div><div class="grid">${(A.sinonimos || []).map(x => `<div class="soft"><b style="color:var(--coffee-d)">${e(x.termino)}</b><div class="small" style="color:var(--coffee)">${e((x.equivalentes || []).join(', '))}</div></div>`).join('') || '<span class="muted">—</span>'}</div></div>
@@ -726,7 +739,14 @@ async function verTexto(id) {
   try {
     const d = await api('/api/documento/' + encodeURIComponent(id));
     const u = urlOficial(d.url);
-    $('modal').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)cerrar()"><div class="modal"><div class="mh"><div><div class="mono" style="font-weight:700;font-size:16px">${e(d.nombre)}</div><div class="small muted">Radicación ${e(d.radicado || 'No consta')} · ${e(d.fecha || 'Fecha no consta')} · M.P. ${e(d.ponente || 'No consta')} · ${e(d.archivo)}</div><div class="small" style="margin-top:4px">${u ? `<a href="${e(u)}" target="_blank" rel="noopener">Abrir documento oficial ↗</a>` : comoVerificar(d)}</div></div><button class="btn btn-o" onclick="cerrar()">Cerrar</button></div><pre>${e(d.texto)}</pre></div></div>`;
+    
+    // --- ANONIMIZACIÓN VISUAL ---
+    // Reemplazamos nombres propios en el texto antes de mostrarlo
+    let textoMostrar = d.texto;
+    // Patrón simple para nombres en mayúsculas (ej. JHON FREDY JIMÉNEZ FAJARDO)
+    textoMostrar = textoMostrar.replace(/\b([A-ZÁÉÍÓÚÑ]{3,})\s+([A-ZÁÉÍÓÚÑ]{3,})(?:\s+([A-ZÁÉÍÓÚÑ]{3,}))?\b/g, '[NOMBRE]');
+    
+    $('modal').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)cerrar()"><div class="modal"><div class="mh"><div><div class="mono" style="font-weight:700;font-size:16px">${e(d.nombre)}</div><div class="small muted">Radicación ${e(d.radicado || 'No consta')} · ${e(d.fecha || 'Fecha no consta')} · M.P. ${e(d.ponente || 'No consta')} · ${e(d.archivo)}</div><div class="small" style="margin-top:4px">${u ? `<a href="${e(u)}" target="_blank" rel="noopener">Abrir documento oficial ↗</a>` : comoVerificar(d)}</div></div><button class="btn btn-o" onclick="cerrar()">Cerrar</button></div><pre>${e(textoMostrar)}</pre></div></div>`;
   } catch (x) { toast(x.message); }
 }
 function cerrar() { $('modal').innerHTML = ''; }
